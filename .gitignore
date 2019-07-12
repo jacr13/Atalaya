@@ -1,0 +1,9 @@
+.history/
+.vscode/
+__pycache__/
+env/
+build/
+dist/
+atalaya*.tgz
+atalaya.egg-info/
+*.pyc
