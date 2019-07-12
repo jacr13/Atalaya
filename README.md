@@ -20,8 +20,8 @@ $ pip install atalaya
 ```
 
 ## Examples
-
-Examples are provided in [examples](https://bitbucket.org/dmmlgeneva/frameworks/src/master/atalaya/examples/) directory, where we simply add the logger to an example of a pytorch implemetation ([source](https://github.com/pytorch/examples/blob/master/mnist/main.py)) in [example_1](https://bitbucket.org/dmmlgeneva/frameworks/src/master/atalaya/examples/example_1). In each [directory](https://bitbucket.org/dmmlgeneva/frameworks/src/master/atalaya/examples/) you have also the files created by the logger. There is a directory named logs and one named vizualize. The first one contains the logs of each experiment and the second one the files needed to visualize e.g. in tensorboard.
+WIP
+<!-- Examples are provided in [examples](https://bitbucket.org/dmmlgeneva/frameworks/src/master/atalaya/examples/) directory, where we simply add the logger to an example of a pytorch implemetation ([source](https://github.com/pytorch/examples/blob/master/mnist/main.py)) in [example_1](https://bitbucket.org/dmmlgeneva/frameworks/src/master/atalaya/examples/example_1). In each [directory](https://bitbucket.org/dmmlgeneva/frameworks/src/master/atalaya/examples/) you have also the files created by the logger. There is a directory named logs and one named vizualize. The first one contains the logs of each experiment and the second one the files needed to visualize e.g. in tensorboard. -->
 
 ## Usage
 
