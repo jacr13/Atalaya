@@ -1,8 +1,6 @@
 # Atalaya
 
-This framework provides a logger for pytorch models, it allows you to save the parameters, the state of the network, the state of the optimizer and allows also to save and visualize your data using tensorboardX or visdom.
-
-/!\ This readme file is WIP
+This [framework](https://pypi.org/project/atalaya/) provides a logger for pytorch models, it allows you to save the parameters, the state of the network, the state of the optimizer and allows also to save and visualize your data using tensorboardX or visdom.
 
 - [Install](#install)
 - [Examples](#Examples)
@@ -21,7 +19,15 @@ $ pip install atalaya
 
 ## Example
 
-An example is provided [here]().
+An example is provided [here](https://github.com/jacr13/Atalaya/tree/master/example).
+
+Launch the example doing :
+
+```bash
+$ ./run.sh
+```
+
+An example of logs produced by the logger are given in the [logs](https://github.com/jacr13/Atalaya/tree/master/example/logs) folder of the example.
 
 ## Usage
 
@@ -80,12 +86,12 @@ logger.restore_parameters(path_to_folder)
 
 1. Add the model (or optimizer or whatever that has a state_dict in pytorch)
 
-    Before starting storing or restoring objects you need to add them to the logger:
+   Before starting storing or restoring objects you need to add them to the logger:
 
-    ```python
-        logger.add("model", model)
-        logger.add("optimizer", optimizer)
-    ```
+   ```python
+       logger.add("model", model)
+       logger.add("optimizer", optimizer)
+   ```
 
 2. Store the model
 

@@ -9,7 +9,7 @@ def read(fname):
 
 setup(
     name="atalaya",
-    version="0.1.5.1",
+    version="0.1.5.2",
     python_requires=">=3.6",
     description="Atalaya is a logger for pytorch.",
     url="https://github.com/jacr13/Atalaya",
