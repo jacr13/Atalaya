@@ -4,6 +4,7 @@ __pycache__/
 env/
 build/
 dist/
+logs/
 atalaya*.tgz
 atalaya.egg-info/
 *.pyc
