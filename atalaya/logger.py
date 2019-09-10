@@ -154,10 +154,6 @@ class Logger:
             prefix, name = tag.split("_")
             self.write_to_csv(prefix, [name], [scalar_value])
 
-    def add_scalars(self, main_tag, tag_scalar_dict, global_step=None):
-        """Adds scalars to the grapher."""
-        self.grapher.add_scalars(main_tag, tag_scalar_dict, global_step)
-
     def export_scalars_to_json(self, path):
         """Exports scalars to json"""
         self.grapher.export_scalars_to_json(path)

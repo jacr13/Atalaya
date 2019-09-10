@@ -80,11 +80,12 @@ logger.restore_parameters(path_to_folder)
 
 1. Add the model (or optimizer or whatever that has a state_dict in pytorch)
 
-   Before starting storing or restoring objects you need to add them to the logger:
+    Before starting storing or restoring objects you need to add them to the logger:
 
-   ```python
-   logger.add("model", model)
-   ```
+    ```python
+        logger.add("model", model)
+        logger.add("optimizer", optimizer)
+    ```
 
 2. Store the model
 
