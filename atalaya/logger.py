@@ -10,7 +10,6 @@ from os.path import join as pjoin
 
 import numpy as np
 import torch
-
 from atalaya.grapher.grapher import Grapher, NoGrapher
 from atalaya.parameters import Parameters
 
@@ -339,7 +338,7 @@ class Logger:
                 "You cannot restore any model..."
             )
 
-        if best and forder is None:
+        if best and folder is None:
             path = pjoin(self.logs_dir, "best.pth")
         else:
             if folder == self.logs_dir:
