@@ -64,7 +64,7 @@ class Logger:
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s:%(levelname)s: %(message)s",
-            filename=pjoin(self.logs_dir, "train.log"),
+            filename=pjoin(self.logs_dir, "experiment.log"),
             filemode="w",
         )
 
@@ -259,7 +259,7 @@ class Logger:
         msg = " ".join(list(map(str, argv)))
         self._logger.info(msg)
 
-    def store(self, loss, save_every=1, overwrite=True):
+    def store(self, loss, lower_is_best=True, save_every=1, overwrite=True):
         """Checks if we have to store or if the current model is the best. 
         If it is the case save the best and return True."""
 
@@ -276,7 +276,7 @@ class Logger:
 
         # Check if the new loss is better than the stored
         # if True save as best and return True
-        if loss < self._loss:
+        if (loss < self._loss and lower_is_best) or (loss > self._loss and not lower_is_best):
             self._save(pjoin(self.logs_dir, "best.pth"))
             self._loss = loss
             return True
@@ -350,7 +350,7 @@ class Logger:
             if best:
                 path = pjoin(folder, "best.pth")
             else:
-                path = pjoin(folder, self.checkpoints_dir[len(self.logs_dir) + 1 :])
+                path = pjoin(folder, self.checkpoints_dir[len(self.logs_dir) + 1:])
                 checkpoint = [
                     file
                     for file in os.listdir(path)
