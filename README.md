@@ -5,6 +5,7 @@
 Atalaya is a lightweight toolkit that helps you keep PyTorch experiments organised. It provides:
 
 - a `Writer` built on top of `tensorboardX` with handy helpers for scalars, models, CSV exports, and optional integrations with Weights & Biases, Neptune, Comet, and ClearML;
+- automatic Git metadata snapshots so you can trace runs back to the exact commit;
 - a colour-aware `terminal` helper for structured CLI output with timestamps;
 - a `Timer` utility to track wall-clock timing for blocks of code or functions;
 - optional console log capture so that your scripts remain reproducible.
@@ -74,6 +75,7 @@ writer.close()
 ```
 
 CSV logging is enabled when `save_as_csv=True`, and calling `output_catcher=True` mirrors everything printed to the console into `log.txt` within the run folder.
+When a Git repository is detected, `git-info.json` is written alongside the logs with the remote URL, branch, and commit so experiments can be reproduced.
 
 ### Optional integrations
 

@@ -10,7 +10,7 @@ from typing import Literal
 import numpy as np
 from tensorboardX import SummaryWriter
 
-from .logging import CSVLogger, OutputCatcher
+from .logging import CSVLogger, GitInfo, OutputCatcher
 
 
 class Writer(SummaryWriter):
@@ -22,6 +22,7 @@ class Writer(SummaryWriter):
         add_name_to_logdir: bool = False,
         add_time: bool = False,
         output_catcher: bool = False,
+        log_git_info: bool = True,
         save_as_csv: bool = False,
         save_code: bool = True,
         **writer_options,
@@ -45,6 +46,7 @@ class Writer(SummaryWriter):
         self._csv_logger = None
         self._output_catcher = None
         self._event_file_path = None
+        self._git_info = None
 
         if save_as_csv:
             self.with_csv_logger()
@@ -55,11 +57,19 @@ class Writer(SummaryWriter):
         self._writer_options = writer_options
         self._initialize_writer()
 
-        if save_code:
-            source = Path(sys.argv[0]).resolve()
-            destination = Path(self.logdir) / "code" / source.name
+        source_path = Path(sys.argv[0]).resolve()
+        if save_code and source_path.exists():
+            destination = Path(self.logdir) / "code" / source_path.name
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(source, destination)
+            shutil.copy(source_path, destination)
+
+        if log_git_info:
+            self._git_info = GitInfo.collect(
+                start_path=source_path.parent if source_path.exists() else Path.cwd()
+            )
+            if self._git_info is not None:
+                git_info_path = Path(self.logdir) / "git-info.json"
+                self._git_info.dump(git_info_path)
 
     def _initialize_writer(self, **writer_options):
         """Initialize the writer and handle any existing event files."""
