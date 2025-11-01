@@ -9,6 +9,16 @@ Atalaya is a lightweight toolkit that helps you keep PyTorch experiments organis
 - a `Timer` utility to track wall-clock timing for blocks of code or functions;
 - optional console log capture so that your scripts remain reproducible.
 
+The writer uses `tensorboardX` as its event backend, so you get native TensorBoard support while still being able to plug in third-party experiment trackers such as Weights & Biases, Neptune, ClearML, or Comet.
+
+| Integration       | Status                                                |
+|-------------------|-------------------------------------------------------|
+| TensorBoardX      | Works (core backend)                                  |
+| Weights & Biases  | Works (`Writer.with_wandb`)                           |
+| Neptune           | Not fully validated yet (`Writer.with_neptune`)       |
+| ClearML           | Not fully validated yet (`Writer.with_clearml`)       |
+| Comet ML          | Not fully validated yet (`Writer.with_comet`)         |
+
 ## Installation
 
 Install the core package from PyPI:
@@ -112,11 +122,14 @@ When you enable `Writer(..., output_catcher=True)` the log file is handled autom
 This project is managed with [Poetry](https://python-poetry.org/).
 
 ```bash
-# Install dependencies (including optional extras for development)
-poetry install
+# Install dependencies (add --with dev to use Poe tasks)
+poetry install --with dev
 
-# Build and publish to PyPI
-poetry publish --build
+# Clean previous builds and publish to PyPI
+poe publish
+
+# Or run the Poetry command directly
+# poetry publish --build
 ```
 
 The package metadata (version, dependencies, classifiers) lives in `pyproject.toml`.

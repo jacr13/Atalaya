@@ -20,32 +20,39 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-numpy = "^1.23"
+numpy = "^2.3"
 tensorboardX = "^2.6"
-psutil = "^5.9"
-wandb = { version = "^0.17", optional = true }
-comet-ml = { version = "^3.37", optional = true }
-clearml = { version = "^1.16", optional = true }
-neptune = { version = "^1.10", optional = true }
-neptune-tensorboard = { version = "^2.0", optional = true }
-matplotlib = { version = "^3.8", optional = true }
+psutil = "^7.1"
+wandb = { version = "^0.22", optional = true }
+comet-ml = { version = "^3.54", optional = true }
+clearml = { version = "^2.0", optional = true }
+neptune = { version = "^1.14", optional = true, extras = ["tensorboard"] }
+matplotlib = { version = "^3.10", optional = true }
 seaborn = { version = "^0.13", optional = true }
 
 [tool.poetry.extras]
 wandb = ["wandb"]
 comet = ["comet-ml"]
 clearml = ["clearml"]
-neptune = ["neptune", "neptune-tensorboard"]
+neptune = ["neptune"]
 visualization = ["matplotlib", "seaborn"]
 all = [
     "wandb",
     "comet-ml",
     "clearml",
     "neptune",
-    "neptune-tensorboard",
     "matplotlib",
     "seaborn",
 ]
+
+[tool.poetry.group.dev.dependencies]
+poethepoet = "^0.24.4"
+
+[tool.poe.tasks.clean-dist]
+shell = "rm -rf dist build"
+
+[tool.poe.tasks.publish]
+sequence = ["clean-dist", { cmd = "poetry publish --build" }]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

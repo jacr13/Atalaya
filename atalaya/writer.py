@@ -170,6 +170,7 @@ class Writer(SummaryWriter):
 
         self._wandb_run = None
         self._neptune_run = None
+        self._clearml_run = None
         self._plt = None
         self._sns = None
 
@@ -207,7 +208,6 @@ class Writer(SummaryWriter):
         self,
         group: str,
         entity: str,
-        tensorboard: bool = True,
         monitor_gym: bool = False,
         save_code: bool = True,
         resume: bool | Literal["allow", "never", "must", "auto"] | None = "allow",
@@ -222,7 +222,7 @@ class Writer(SummaryWriter):
             group=group,
             entity=entity,
             dir=self.logdir,
-            sync_tensorboard=tensorboard,
+            sync_tensorboard=True,
             monitor_gym=monitor_gym,
             save_code=save_code,
             name=self.name,
@@ -236,7 +236,10 @@ class Writer(SummaryWriter):
 
     def with_comet(self, api_key: str, disabled: bool = False, **comet_config):
         """Configure and initialize comet_logger."""
-        # TODO: not tested
+        warnings.warn(
+            "Comet integration is adapted from the public documentation and has not been fully validated within Atalaya. Use with caution.",
+            UserWarning,
+        )
         import comet_ml
 
         if api_key is None:
@@ -254,20 +257,26 @@ class Writer(SummaryWriter):
 
     def with_clearml(self, **clearml_config):
         """Configure and initialize clearml_logger."""
-        # TODO: not tested
+        warnings.warn(
+            "ClearML integration is adapted from the public documentation and has not been fully validated within Atalaya. Use with caution.",
+            UserWarning,
+        )
         from clearml import Task
 
-        task = Task.init(
+        self._clearml_run = Task.init(
             task_name=self.name, project_name=self.project, **clearml_config
         )
 
     def with_neptune(self, entity: str, **neptune_config):
         """Configure and initialize neptune_logger."""
-        # TODO: not tested
+        warnings.warn(
+            "Neptune integration is adapted from the public documentation and has not been fully validated within Atalaya. Use with caution.",
+            UserWarning,
+        )
         import neptune
         from neptune_tensorboard import enable_tensorboard_logging
 
-        self._neptune_run = Run(
+        self._neptune_run = neptune.init_run(
             project=f"{entity}/{self.project}", name=self.name, **neptune_config
         )
 
@@ -373,9 +382,6 @@ class Writer(SummaryWriter):
         super(Writer, self).close()
         if self._wandb_run is not None:
             self._wandb_run.finish()
-
-        if self._print_catcher is not None:
-            self._print_catcher.stop()
 
     # compatibility methods
     def log(self, data, step=None, prefix=None, **log_options):
