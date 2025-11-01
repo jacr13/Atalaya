@@ -1,9 +1,6 @@
-import csv
-import json
 import os
 import shutil
 import sys
-import threading
 import time
 import warnings
 from datetime import datetime
@@ -13,138 +10,7 @@ from typing import Literal
 import numpy as np
 from tensorboardX import SummaryWriter
 
-
-class OutputCatcher:
-    def __init__(
-        self,
-        logdir,
-        filename="log.txt",
-        with_time=False,
-        catch_stdout=True,
-        catch_errors=False,
-    ):
-        self.logdir = Path(logdir)
-        self.logdir.mkdir(parents=True, exist_ok=True)
-        self.log_filename = self.logdir / filename
-        self._with_time = with_time
-        self._catch_stdout = catch_stdout
-        self._catch_errors = catch_errors
-
-        # Save the original sys.stdout and sys.stderr
-        self.original_stdout = sys.stdout
-        self.original_stderr = sys.stderr
-
-        # Create an OS-level pipe
-        self.pipe_r, self.pipe_w = os.pipe()
-        self.pipe_writer = os.fdopen(self.pipe_w, "w")
-
-        # Replace both stdout and stderr with our catcher
-        if self._catch_stdout:
-            sys.stdout = self
-        if self._catch_errors:
-            sys.stderr = self
-
-        # Control variable for the background thread
-        self.running = True
-
-        # Start the background thread that reads from the pipe
-        self.thread = threading.Thread(target=self._reader_thread, daemon=True)
-        self.thread.start()
-
-    def write(self, data):
-        # Write data to the pipe
-        self.pipe_writer.write(data)
-        self.pipe_writer.flush()
-
-    def flush(self):
-        # flush() is implemented for a file-like object
-        self.pipe_writer.flush()
-
-    def _reader_thread(self):
-        # Open a file object for the read end of the pipe
-        pipe_reader = os.fdopen(self.pipe_r, "r")
-        with self.log_filename.open("a") as logfile:
-            while self.running:
-                # Read one line at a time (blocking)
-                line = pipe_reader.readline()
-                if not line:
-                    break
-                # Optionally write back to original stdout for live output
-                self.original_stdout.write(line)
-                self.original_stdout.flush()
-
-                # Write the captured output to the log file
-                if self._with_time:
-                    line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {line}"
-                logfile.write(line)
-                logfile.flush()
-
-    def stop(self):
-        # Restore the original stdout and stderr
-        self.running = False
-        sys.stdout = self.original_stdout
-        sys.stderr = self.original_stderr
-
-        # Closing the writer to signal the thread to stop
-        self.pipe_writer.close()
-        self.thread.join()
-
-
-class CSVLogger:
-    def __init__(
-        self,
-        logdir: str,
-        filename: str = "data.csv",
-        flush_interval: int = 10,
-        initial_time: float = time.time(),
-    ):
-        self.logdir = Path(logdir)
-        self.logdir.mkdir(parents=True, exist_ok=True)
-        self.filepath = self.logdir / filename
-
-        self._initial_time = initial_time
-        self._flush_interval = flush_interval
-        self._lines_to_write = []
-
-        # add header
-        self._lines_to_write.append(
-            ["global_step", "tag", "value", "walltime", "relative_time"]
-        )
-
-    def add(
-        self,
-        tag: str,
-        value,
-        global_step: int,
-        walltime: float,
-        initial_time: float | None = None,
-    ):
-        """
-        Add a new log entry to the CSV.
-
-        Parameters:
-            tag (str): The tag name, optionally with prefix (e.g. 'train/accuracy').
-            value: The logged value (e.g. a scalar number).
-            global_step (int): The current global step or epoch.
-            walltime (float): The current walltime (e.g. time.time()).
-            initial_time (float): A reference start time to compute the relative time.
-        """
-        initial_time = initial_time or self._initial_time
-
-        # Calculate the relative time since the initial time.
-        relative_time = walltime - initial_time
-        self._lines_to_write.append([global_step, tag, value, walltime, relative_time])
-
-        if len(self._lines_to_write) >= self._flush_interval:
-            self.flush()
-
-    def flush(self):
-        with self.filepath.open("a+") as file:
-            csv_writer = csv.writer(file)
-            for line in self._lines_to_write:
-                csv_writer.writerow(line)
-
-        self._lines_to_write = []
+from .logging import CSVLogger, OutputCatcher
 
 
 class Writer(SummaryWriter):
@@ -212,6 +78,8 @@ class Writer(SummaryWriter):
         self._event_file_path = Path(
             self.file_writer.event_writer._ev_writer._file_name
         )
+        # SummaryWriter may overwrite logdir, ensure we keep a Path instance
+        self.logdir = Path(self.logdir)
 
     def with_wandb(
         self,
@@ -304,7 +172,7 @@ class Writer(SummaryWriter):
             warnings.warn("You already have a print_catcher. This call is ignored.")
             return
         self._output_catcher = OutputCatcher(
-            logdir=self.logdir,
+            logdir=str(self.logdir),
             filename=filename,
             with_time=with_time,
             catch_stdout=catch_stdout,
@@ -312,7 +180,7 @@ class Writer(SummaryWriter):
         )
 
     def with_csv_logger(self):
-        self._csv_logger = CSVLogger(self.logdir)
+        self._csv_logger = CSVLogger(str(self.logdir))
 
     def add_scalars(
         self,
@@ -392,6 +260,8 @@ class Writer(SummaryWriter):
             self._wandb_run.finish()
         if self._csv_logger is not None:
             self._csv_logger.flush()
+        if self._output_catcher is not None:
+            self._output_catcher.stop()
 
     # compatibility methods
     def log(self, data, step=None, prefix=None, **log_options):
