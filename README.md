@@ -52,6 +52,7 @@ writer = Writer(
     add_time=True,
     save_as_csv=True,
     output_catcher=True,
+    log_git_info=True,
 )
 
 # Optional: sync logs with Weights & Biases
@@ -75,7 +76,7 @@ writer.close()
 ```
 
 CSV logging is enabled when `save_as_csv=True`, and calling `output_catcher=True` mirrors everything printed to the console into `log.txt` within the run folder.
-When a Git repository is detected, `git-info.json` is written alongside the logs with the remote URL, branch, and commit so experiments can be reproduced.
+When `log_git_info` is enabled and a Git repository is detected, `git-info.json` is written alongside the logs with the remote URL, branch, commit, and ready-to-run checkout/clone commands so experiments can be reproduced.
 
 ### Optional integrations
 

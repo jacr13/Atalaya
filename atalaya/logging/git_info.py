@@ -27,6 +27,8 @@ class GitInfo:
     branch: str | None = None
     commit: str | None = None
     status: str | None = None
+    checkout_command: str | None = None
+    clone_command: str | None = None
 
     @classmethod
     def collect(cls, start_path: str | Path | None = None) -> "GitInfo | None":
@@ -38,14 +40,26 @@ class GitInfo:
         branch = _run_git_command(["rev-parse", "--abbrev-ref", "HEAD"], root)
         commit = _run_git_command(["rev-parse", "HEAD"], root)
         status = _run_git_command(["status", "--short"], root)
+        checkout_cmd = None
+        clone_cmd = None
+        if commit:
+            checkout_cmd = f"git fetch && git checkout {commit}"
+            if branch and branch != "HEAD":
+                checkout_cmd = (
+                    f"git fetch && git checkout {branch} && git reset --hard {commit}"
+                )
+            clone_cmd = cls._build_clone_command(remote, branch, commit)
 
-        return cls(
+        info = cls(
             path=str(root),
             remote_url=remote,
             branch=branch,
             commit=commit,
             status=status,
+            checkout_command=checkout_cmd,
+            clone_command=clone_cmd,
         )
+        return info
 
     @staticmethod
     def _find_repo_root(start_path: str | Path | None = None) -> Path | None:
@@ -63,3 +77,48 @@ class GitInfo:
 
     def _dict_without_none(self) -> dict[str, Any]:
         return {key: value for key, value in asdict(self).items() if value is not None}
+
+    @staticmethod
+    def _build_clone_command(
+        remote: str | None, branch: str | None, commit: str | None
+    ) -> str | None:
+        if remote is None or commit is None:
+            return None
+
+        repo_dir = GitInfo._extract_repo_dir(remote)
+        if branch and branch != "HEAD":
+            branch_name = f"{branch}-replay"
+        else:
+            branch_name = f"exp-{commit[:7]}"
+
+        if repo_dir is None:
+            # Fallback without explicit directory name
+            return (
+                f"git clone {remote} && "
+                f"cd <repo-dir> && "
+                f"git checkout -b {branch_name} {commit}"
+            )
+
+        return (
+            f"git clone {remote} && "
+            f"cd {repo_dir} && "
+            f"git checkout -b {branch_name} {commit}"
+        )
+
+    @staticmethod
+    def _extract_repo_dir(remote: str) -> str | None:
+        if remote.endswith(".git"):
+            remote = remote[:-4]
+
+        if remote.startswith("git@"):
+            path_part = remote.split(":", 1)[-1]
+        elif remote.startswith("http://") or remote.startswith("https://"):
+            path_part = remote.rstrip("/").split("/", maxsplit=3)[-1]
+        else:
+            path_part = remote
+
+        if "/" in path_part:
+            return path_part.split("/")[-1]
+        if path_part:
+            return path_part
+        return None
