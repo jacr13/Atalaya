@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import sys
@@ -10,7 +11,7 @@ from typing import Literal
 import numpy as np
 from tensorboardX import SummaryWriter
 
-from .logging import CSVLogger, GitInfo, OutputCatcher
+from .logging import CSVLogger, GitInfo, OutputCatcher, collect_run_info
 
 
 class Writer(SummaryWriter):
@@ -25,6 +26,7 @@ class Writer(SummaryWriter):
         log_git_info: bool = True,
         save_as_csv: bool = False,
         save_code: bool = True,
+        extra_info: dict | None = None,
         **writer_options,
     ):
         self._initial_time = time.time()
@@ -46,7 +48,6 @@ class Writer(SummaryWriter):
         self._csv_logger = None
         self._output_catcher = None
         self._event_file_path = None
-        self._git_info = None
 
         if save_as_csv:
             self.with_csv_logger()
@@ -63,14 +64,25 @@ class Writer(SummaryWriter):
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(source_path, destination)
 
+        run_info = collect_run_info(
+            run_name=self.name,
+            project=self.project,
+            logdir=self.logdir,
+            source_path=source_path,
+            extra=extra_info,
+        )
+
         if log_git_info:
-            self._git_info = GitInfo.collect(
+            git_info = GitInfo.collect(
                 start_path=source_path.parent if source_path.exists() else Path.cwd(),
                 run_name=self.name,
             )
-            if self._git_info is not None:
-                git_info_path = Path(self.logdir) / "git-info.json"
-                self._git_info.dump(git_info_path)
+            if git_info is not None:
+                run_info["git"] = git_info.to_dict() 
+
+        info_path = Path(self.logdir) / "info.json"
+        info_path.parent.mkdir(parents=True, exist_ok=True)
+        info_path.write_text(json.dumps(run_info, indent=2))
 
     def _initialize_writer(self, **writer_options):
         """Initialize the writer and handle any existing event files."""

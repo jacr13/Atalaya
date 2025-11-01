@@ -82,9 +82,9 @@ class GitInfo:
         destination_path = Path(destination)
         destination_path.parent.mkdir(parents=True, exist_ok=True)
         with destination_path.open("w") as fh:
-            json.dump(self._dict_without_none(), fh, indent=2)
+            json.dump(self.to_dict(), fh, indent=2)
 
-    def _dict_without_none(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {key: value for key, value in asdict(self).items() if value is not None}
 
     @staticmethod
