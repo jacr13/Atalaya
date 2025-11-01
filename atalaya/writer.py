@@ -33,7 +33,7 @@ class Writer(SummaryWriter):
         self.logdir = Path(logdir)
 
         if add_time:
-            self.name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{self.name}"
+            self.name = f"{self.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         if add_name_to_logdir:
             self.logdir = self.logdir / self.name

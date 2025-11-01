@@ -76,13 +76,14 @@ def train():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=3e-3)
 
-    log_dir = Path(f"example/logs/mlp_{time.strftime('%Y%m%d_%H%M%S')}")
+    log_dir = Path(f"example/logs/")
     log_dir.mkdir(parents=True, exist_ok=True)
 
     writer = Writer(
         name="mlp_example",
         project="atalaya_examples",
         logdir=str(log_dir),
+        add_name_to_logdir=True,
         add_time=True,
         save_as_csv=True,
         output_catcher=True,
