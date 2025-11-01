@@ -65,7 +65,8 @@ class Writer(SummaryWriter):
 
         if log_git_info:
             self._git_info = GitInfo.collect(
-                start_path=source_path.parent if source_path.exists() else Path.cwd()
+                start_path=source_path.parent if source_path.exists() else Path.cwd(),
+                run_name=self.name,
             )
             if self._git_info is not None:
                 git_info_path = Path(self.logdir) / "git-info.json"

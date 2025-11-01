@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -29,9 +30,14 @@ class GitInfo:
     status: str | None = None
     checkout_command: str | None = None
     clone_command: str | None = None
+    run_name: str | None = None
 
     @classmethod
-    def collect(cls, start_path: str | Path | None = None) -> "GitInfo | None":
+    def collect(
+        cls,
+        start_path: str | Path | None = None,
+        run_name: str | None = None,
+    ) -> "GitInfo | None":
         root = cls._find_repo_root(start_path)
         if root is None:
             return None
@@ -42,13 +48,16 @@ class GitInfo:
         status = _run_git_command(["status", "--short"], root)
         checkout_cmd = None
         clone_cmd = None
+        sanitized_run_name = cls._sanitize_branch_name(run_name) if run_name else None
         if commit:
             checkout_cmd = f"git fetch && git checkout {commit}"
             if branch and branch != "HEAD":
                 checkout_cmd = (
                     f"git fetch && git checkout {branch} && git reset --hard {commit}"
                 )
-            clone_cmd = cls._build_clone_command(remote, branch, commit)
+            clone_cmd = cls._build_clone_command(
+                remote, branch, commit, sanitized_run_name
+            )
 
         info = cls(
             path=str(root),
@@ -80,13 +89,18 @@ class GitInfo:
 
     @staticmethod
     def _build_clone_command(
-        remote: str | None, branch: str | None, commit: str | None
+        remote: str | None,
+        branch: str | None,
+        commit: str | None,
+        run_branch: str | None,
     ) -> str | None:
         if remote is None or commit is None:
             return None
 
         repo_dir = GitInfo._extract_repo_dir(remote)
-        if branch and branch != "HEAD":
+        if run_branch:
+            branch_name = run_branch
+        elif branch and branch != "HEAD":
             branch_name = f"{branch}-replay"
         else:
             branch_name = f"exp-{commit[:7]}"
@@ -122,3 +136,14 @@ class GitInfo:
         if path_part:
             return path_part
         return None
+
+    @staticmethod
+    def _sanitize_branch_name(name: str) -> str | None:
+        sanitized = re.sub(r"\s+", "-", name.strip())
+        sanitized = re.sub(r"[^A-Za-z0-9._/-]", "-", sanitized)
+        sanitized = re.sub(r"-{2,}", "-", sanitized)
+        sanitized = sanitized.strip("-/")
+        if not sanitized:
+            return None
+        # Git branch names cannot end with .lock etc, trim to safe length
+        return sanitized[:80]
