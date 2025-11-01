@@ -1,4 +1,3 @@
 include LICENSE
 include MANIFEST.in
 graft atalaya
-graft grapher

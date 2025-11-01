@@ -1,147 +1,109 @@
 # Atalaya
 
-This [framework](https://pypi.org/project/atalaya/) provides a logger for pytorch models, it allows you to save the parameters, the state of the network, the state of the optimizer and allows also to save and visualize your data using tensorboardX or visdom.
+[![PyPI version](https://img.shields.io/pypi/v/atalaya.svg)](https://pypi.org/project/atalaya/)
 
-- [Install](#install)
-- [Examples](#Examples)
-- [Usage](#usage)
-  - [Init](#init)
-  - [Log Information](#Log-Information)
-  - [Store your Parameters](#Store-your-Parameters)
-  - [Store and Restore (models and optimizers)](<#Store-and-Restore-(models-and-optimizers)>)
-  - [Grapher](#Grapher)
+Atalaya is a lightweight toolkit that helps you keep PyTorch experiments organised. It provides:
 
-## Install
+- a `Writer` built on top of `tensorboardX` with handy helpers for scalars, models, CSV exports, and optional integrations with Weights & Biases, Neptune, Comet, and ClearML;
+- a colour-aware `terminal` helper for structured CLI output with timestamps;
+- a `Timer` utility to track wall-clock timing for blocks of code or functions;
+- optional console log capture so that your scripts remain reproducible.
 
-```bash
-$ pip install atalaya
-```
+## Installation
 
-## Example
-
-An example is provided [here](https://github.com/jacr13/Atalaya/tree/master/example).
-
-Launch the example doing :
+Install the core package from PyPI:
 
 ```bash
-$ ./run.sh
+pip install atalaya
 ```
 
-An example of logs produced by the logger are given in the [logs](https://github.com/jacr13/Atalaya/tree/master/example/logs) folder of the example.
+Extras are available if you want to enable third-party integrations:
 
-## Usage
+```bash
+# Enable Weights & Biases support
+pip install atalaya[wandb]
 
-### Init
+# Install everything (Neptune, Comet, ClearML, matplotlib, seaborn)
+pip install atalaya[all]
+```
+
+## Quick Start
+
+### TensorBoard logging
 
 ```python
-from atalaya import Logger
+from atalaya.writer import Writer
 
-logger = Logger(
-    name="exp",         # name of the logger
-    path="logs",        # path to logs
-    verbose=True,       # logger in verbose mode
+writer = Writer(
+    name="baseline",
+    project="my-awesome-project",
+    logdir="logs",
+    add_time=True,
+    save_as_csv=True,
+    output_catcher=True,
 )
 
-# by default Logger uses no grapher
-# you can setup it by specifying if you want visdom or tensorboardX
-logger = Logger(
-    name="exp",         # name of the logger
-    path="logs",        # path to logs
-    verbose=True,       # logger in verbose mode
-    grapher="visdom",
-    server="http://localhost",
-    port=8097,
-    username="user",    # if needed for visdom
-    password="pwd",     # if needed for visdom
-)
+for epoch in range(10):
+    metrics = {"loss": 0.1 * epoch, "accuracy": 0.5 + 0.05 * epoch}
+    writer.add_scalars(metrics, global_step=epoch, prefix="train")
 
-# your code here
-...
-
-# to close the logger
-logger.close()
+writer.close()
 ```
 
-### Log Information
+CSV logging is enabled when `save_as_csv=True`, and calling `output_catcher=True` mirrors everything printed to the console into `log.txt` within the run folder.
+
+### Optional integrations
 
 ```python
-# logs information in console and in log file.
-logger.info("your", "information", "here", "like", "a", "print")
-
-# same as logger.info but for warning messages
-logger.warning("your warning")
+writer.with_wandb(group="experiments", entity="my-team")
+writer.with_neptune(entity="my-workspace")
 ```
 
-### Store your Parameters
+Install the matching extras first (for example `poetry add atalaya[wandb]` or `pip install atalaya[neptune]`).
+
+### Timing utilities
 
 ```python
-# save your parameters into a json file
-logger.add_parameters(args)
+from atalaya.time_manager import Timer
 
-# load the parameters froma previous experiment
-logger.restore_parameters(path_to_folder)
+timer = Timer("training")
+
+with timer:
+    run_training_loop()
+
+timer.report(report_type="total_with_stats")  # prints coloured summary to the terminal
 ```
 
-### Store and Restore (models and optimizers)
-
-1. Add the model (or optimizer or whatever that has a state_dict in pytorch)
-
-   Before starting storing or restoring objects you need to add them to the logger:
-
-   ```python
-       logger.add("model", model)
-       logger.add("optimizer", optimizer)
-   ```
-
-2. Store the model
-
-   In training loop we can add this method, it allows us to save checkpoints,
-   and the best model.
-
-   - The parameter valid_loss is simply the parameter to know when to save the best. It looks if
-     the new valid_loss is less than the value keep by the logger as lower if it's the case save as best and
-     update the value keep in memory.
-   - The parameter save_every specify how often to save a checkpoint during training.
-   - overwrite specify if we want to overwrite the last checkpoint to keep only the last one
-     or if we want to keep them all (saves a model per epoch --> DANGEROUS)
-
-   ```python
-       logger.store(valid_loss, save_every=1, overwrite=True)
-
-   ```
-
-3. Restore the model
-   To restore the best after taining simply do
-
-   ```python
-       logger.restore(best=True)
-   ```
-
-   To restore a checkpoint from another exp :
-
-   ```python
-       logger.restore(folder=path_to_folder)
-   ```
-
-   To restore the best from another exp :
-
-   ```python
-       logger.restore(folder=path_to_folder, best=True)
-   ```
-
-### Grapher
-
-Some examples of grapher methods.
+### Terminal helper
 
 ```python
-logger.add_scalar("train_mse", scalar_value, global_step=None, save_csv=True)
+from atalaya.terminal import terminal
 
-logger.add_text("tag", "your text here")
+# Optional: persist terminal output without a Writer output catcher
+terminal.set_log_file("logs/terminal.log")
 
-# values for each batch size at a given epoch
-values = {
-    "mse": [10, 9, 8, 7],
-    "acc": [0.3, 0.5, 0.55, 0.6]
-}
-logger.register_plots(values, epoch, "train", apply_mean=True, save_csv=True, info=True)
+# Override colours either by name or raw ANSI code
+terminal.set_named_color("orange", "\033[38;5;208m")
+terminal.set_color("warning", "orange")
+
+terminal.print_info("Loading data...")
+terminal.print_warning("Loss is plateauing...", color="orange")
+terminal.print_ok("Training finished successfully!")
 ```
+
+Messages are timestamped with the process uptime by default.
+When you enable `Writer(..., output_catcher=True)` the log file is handled automatically, so calling `set_log_file` is not required.
+
+## Development and Publishing
+
+This project is managed with [Poetry](https://python-poetry.org/).
+
+```bash
+# Install dependencies (including optional extras for development)
+poetry install
+
+# Build and publish to PyPI
+poetry publish --build
+```
+
+The package metadata (version, dependencies, classifiers) lives in `pyproject.toml`.
