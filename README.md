@@ -117,6 +117,16 @@ terminal.print_ok("Training finished successfully!")
 Messages are timestamped with the process uptime by default.
 When you enable `Writer(..., output_catcher=True)` the log file is handled automatically, so calling `set_log_file` is not required.
 
+### Example project
+
+The `example/` directory ships with a small PyTorch multi-layer perceptron that demonstrates writer usage end-to-end:
+
+```bash
+python example/mlp.py
+```
+
+Logs are saved in `example/logs/`, and the script shows how to combine `Writer`, `Timer`, and the `terminal` helper in a real training loop.
+
 ## Development and Publishing
 
 This project is managed with [Poetry](https://python-poetry.org/).
