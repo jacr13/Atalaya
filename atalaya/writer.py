@@ -7,6 +7,7 @@ import threading
 import time
 import warnings
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 
 import numpy as np
@@ -22,7 +23,9 @@ class OutputCatcher:
         catch_stdout=True,
         catch_errors=False,
     ):
-        self.log_filename = os.path.join(logdir, filename)
+        self.logdir = Path(logdir)
+        self.logdir.mkdir(parents=True, exist_ok=True)
+        self.log_filename = self.logdir / filename
         self._with_time = with_time
         self._catch_stdout = catch_stdout
         self._catch_errors = catch_errors
@@ -60,7 +63,7 @@ class OutputCatcher:
     def _reader_thread(self):
         # Open a file object for the read end of the pipe
         pipe_reader = os.fdopen(self.pipe_r, "r")
-        with open(self.log_filename, "a") as logfile:
+        with self.log_filename.open("a") as logfile:
             while self.running:
                 # Read one line at a time (blocking)
                 line = pipe_reader.readline()
@@ -95,9 +98,9 @@ class CSVLogger:
         flush_interval: int = 10,
         initial_time: float = time.time(),
     ):
-        self.logdir = logdir
-        os.makedirs(logdir, exist_ok=True)
-        self.filepath = os.path.join(logdir, filename)
+        self.logdir = Path(logdir)
+        self.logdir.mkdir(parents=True, exist_ok=True)
+        self.filepath = self.logdir / filename
 
         self._initial_time = initial_time
         self._flush_interval = flush_interval
@@ -136,7 +139,7 @@ class CSVLogger:
             self.flush()
 
     def flush(self):
-        with open(self.filepath, "a+") as file:
+        with self.filepath.open("a+") as file:
             csv_writer = csv.writer(file)
             for line in self._lines_to_write:
                 csv_writer.writerow(line)
@@ -160,13 +163,13 @@ class Writer(SummaryWriter):
         self._initial_time = time.time()
         self.name = name
         self.project = project
-        self.logdir = logdir
+        self.logdir = Path(logdir)
 
         if add_time:
             self.name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{self.name}"
 
         if add_name_to_logdir:
-            self.logdir = os.path.join(self.logdir, self.name)
+            self.logdir = self.logdir / self.name
 
         self._wandb_run = None
         self._neptune_run = None
@@ -185,24 +188,28 @@ class Writer(SummaryWriter):
         self._initialize_writer()
 
         if save_code:
-            shutil.copy(
-                os.path.abspath(sys.argv[0]), os.path.join(self.logdir, sys.argv[0])
-            )
+            source = Path(sys.argv[0]).resolve()
+            destination = self.logdir / Path(sys.argv[0])
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(source, destination)
 
     def _initialize_writer(self, **writer_options):
         """Initialize the writer and handle any existing event files."""
         # Close and remove any previous writer's event file if it exists
         if self._event_file_path is not None:
             super(Writer, self).close()
-            if os.path.exists(self._event_file_path):
-                os.remove(self._event_file_path)
+            if self._event_file_path.exists():
+                self._event_file_path.unlink()
 
         writer_options.update(self._writer_options)
         self._writer_options = writer_options
 
         # Initialize new writer and save the event file path
-        super(Writer, self).__init__(logdir=self.logdir, **self._writer_options)
-        self._event_file_path = self.file_writer.event_writer._ev_writer._file_name
+        self.logdir.mkdir(parents=True, exist_ok=True)
+        super(Writer, self).__init__(logdir=str(self.logdir), **self._writer_options)
+        self._event_file_path = Path(
+            self.file_writer.event_writer._ev_writer._file_name
+        )
 
     def with_wandb(
         self,
@@ -221,7 +228,7 @@ class Writer(SummaryWriter):
             project=self.project,
             group=group,
             entity=entity,
-            dir=self.logdir,
+            dir=str(self.logdir),
             sync_tensorboard=True,
             monitor_gym=monitor_gym,
             save_code=save_code,
