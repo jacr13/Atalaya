@@ -43,9 +43,22 @@ writer = Writer(
     output_catcher=True,
 )
 
+# Optional: sync logs with Weights & Biases
+writer.with_wandb(group="experiments", entity="my-team")
+
 for epoch in range(10):
     metrics = {"loss": 0.1 * epoch, "accuracy": 0.5 + 0.05 * epoch}
     writer.add_scalars(metrics, global_step=epoch, prefix="train")
+
+    # WandB-style convenience API
+    writer.log({"train/loss": metrics["loss"]}, step=epoch)
+
+    # Log entire models to track parameter and gradient histograms
+    writer.add_models(
+        {"encoder": encoder, "decoder": decoder},
+        global_step=epoch,
+        log_type="all",  # "parameters", "gradients", or "all"
+    )
 
 writer.close()
 ```
