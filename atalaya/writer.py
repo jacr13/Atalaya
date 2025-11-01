@@ -189,7 +189,7 @@ class Writer(SummaryWriter):
 
         if save_code:
             source = Path(sys.argv[0]).resolve()
-            destination = self.logdir / Path(sys.argv[0])
+            destination = self.logdir / "code" / source.name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(source, destination)
 
