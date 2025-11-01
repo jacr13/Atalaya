@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "atalaya"
-version = "0.2.5"
+version = "0.2.6"
 description = "Flexible experiment logging helpers for PyTorch projects."
 authors = ["Joao Ramos <joao@cramos.ch>"]
 license = "MIT"
