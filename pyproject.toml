@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "atalaya"
-version = "0.2.1"
+version = "0.2.4"
 description = "Flexible experiment logging helpers for PyTorch projects."
 authors = ["Joao Ramos <joao@cramos.ch>"]
 license = "MIT"
@@ -20,7 +20,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-numpy = "^2.3"
+numpy = "^2.2"
 tensorboardX = "^2.6"
 psutil = "^7.1"
 wandb = { version = "^0.22", optional = true }

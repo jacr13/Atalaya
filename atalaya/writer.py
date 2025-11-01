@@ -176,20 +176,22 @@ class Writer(SummaryWriter):
         self._clearml_run = None
         self._plt = None
         self._sns = None
-
-        self._csv_logging = save_as_csv
-
+        self._csv_logger = None
         self._output_catcher = None
+        self._event_file_path = None
+
+        if save_as_csv:
+            self.with_csv_logger()
+
         if output_catcher:
             self.with_output_catcher()
 
         self._writer_options = writer_options
-        self._event_file_path = None
         self._initialize_writer()
 
         if save_code:
             source = Path(sys.argv[0]).resolve()
-            destination = self.logdir / "code" / source.name
+            destination = Path(self.logdir) / "code" / source.name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(source, destination)
 
@@ -310,7 +312,6 @@ class Writer(SummaryWriter):
         )
 
     def with_csv_logger(self):
-        self._csv_logging = True
         self._csv_logger = CSVLogger(self.logdir)
 
     def add_scalars(
@@ -331,7 +332,7 @@ class Writer(SummaryWriter):
                 value = value.item()
             self.add_scalar(tag, value, global_step, walltime, **extra_options)
 
-            if self._csv_logging:
+            if self._csv_logger is not None:
                 self._csv_logger.add(
                     tag, value, global_step, walltime, initial_time=self._initial_time
                 )
@@ -389,6 +390,8 @@ class Writer(SummaryWriter):
         super(Writer, self).close()
         if self._wandb_run is not None:
             self._wandb_run.finish()
+        if self._csv_logger is not None:
+            self._csv_logger.flush()
 
     # compatibility methods
     def log(self, data, step=None, prefix=None, **log_options):
