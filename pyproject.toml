@@ -54,6 +54,10 @@ pytest = "^8.0"
 tensorboard = "^2.15"  # tests read event files back
 pandas = "^2.0"  # tests of atalaya.read
 
+[tool.poe]
+# POETRY_PYPI_TOKEN_PYPI for `poe publish`; .env is gitignored and left out of the sdist
+envfile = ".env"
+
 [tool.poe.tasks.clean-dist]
 shell = "rm -rf dist build"
 
