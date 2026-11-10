@@ -105,6 +105,35 @@ _ASYNC_METHODS = (
 )
 
 
+def _probe_wandb(timeout: float) -> str | None:
+    """None if the W&B API answers over HTTP, else why not.
+
+    Any HTTP response, even an error status, means the server is reachable;
+    only connection-level failures count. Uses the same proxy settings
+    (HTTPS_PROXY, ...) as W&B.
+    """
+    import urllib.error
+    import urllib.request
+
+    base = os.environ.get("WANDB_BASE_URL", "https://api.wandb.ai").rstrip("/")
+    try:
+        urllib.request.urlopen(urllib.request.Request(base, method="HEAD"), timeout=timeout).close()
+    except urllib.error.HTTPError:
+        return None
+    except Exception as e:  # URLError, timeout, proxy refusal, DNS ...
+        reason = getattr(e, "reason", e)
+        return f"{type(e).__name__}: {reason} ({base})"
+    return None
+
+
+def _teardown_wandb(wandb) -> None:
+    for fn in ("finish", "teardown"):
+        try:
+            getattr(wandb, fn)()
+        except Exception:
+            pass
+
+
 class Writer(SummaryWriter):
     """tensorboardX SummaryWriter that also keeps a run's metadata on disk.
 
@@ -315,14 +344,21 @@ class Writer(SummaryWriter):
         config: dict | None = None,
         init_timeout: float | None = 90,
         fallback_offline: bool = True,
+        probe_timeout: float | None = 5,
         **wandb_options,
     ):
         """Mirror this writer's TensorBoard logs to a Weights & Biases run.
 
-        If ``wandb.init`` fails (no network, proxy errors, timeout) and
+        If W&B cannot be reached (no network, proxy errors, timeout) and
         ``fallback_offline`` is set, the run continues in offline mode. info.json
         then says so under ``integrations.wandb`` and gives the ``wandb sync``
         command to upload it. Local logging never depends on W&B.
+
+        Before an online ``wandb.init``, the W&B server is probed with a plain
+        HTTP request (``probe_timeout`` seconds, same proxy settings). A failed
+        ``wandb.init`` leaves W&B's background service retrying, which makes an
+        offline retry time out too and the process hang at exit; probing first
+        avoids starting that online run at all. ``probe_timeout=None`` skips it.
         """
         import wandb
 
@@ -346,20 +382,28 @@ class Writer(SummaryWriter):
             kwargs["settings"] = wandb.Settings(init_timeout=init_timeout)
 
         error = None
-        try:
-            self._wandb_run = wandb.init(**kwargs)
-        except Exception as e:
-            if not fallback_offline or kwargs.get("mode") in ("offline", "disabled"):
-                self._record_integration(
-                    "wandb", status="failed", error=f"{type(e).__name__}: {e}"
-                )
-                raise
-            error = f"{type(e).__name__}: {e}"
+        online = kwargs.get("mode") not in ("offline", "disabled") and os.environ.get(
+            "WANDB_MODE", ""
+        ).lower() not in ("offline", "disabled", "dryrun")
+        if online and fallback_offline and probe_timeout is not None:
+            error = _probe_wandb(probe_timeout)
+            if error is not None:
+                kwargs["mode"] = "offline"  # never start an online run that cannot connect
+        if error is None:
             try:
-                wandb.finish()
-            except Exception:
-                pass
-            kwargs["mode"] = "offline"
+                self._wandb_run = wandb.init(**kwargs)
+            except Exception as e:
+                if not fallback_offline or not online:
+                    self._record_integration(
+                        "wandb", status="failed", error=f"{type(e).__name__}: {e}"
+                    )
+                    raise
+                error = f"{type(e).__name__}: {e}"
+                # stop the background service that is still retrying the online run,
+                # or the offline init below times out too and exit hangs
+                _teardown_wandb(wandb)
+                kwargs["mode"] = "offline"
+        if error is not None:
             self._wandb_run = wandb.init(**kwargs)
 
         run = self._wandb_run
@@ -369,10 +413,10 @@ class Writer(SummaryWriter):
             command = f"wandb sync {self._wandb_offline_dir(run)}"
             if error is not None:
                 note = (
-                    "wandb.init failed, so this run was logged to W&B offline. "
+                    "W&B could not be reached, so this run was logged to W&B offline. "
                     "Local logs are complete. Run the command to upload it."
                 )
-                warnings.warn(f"wandb.init failed ({error}); continuing offline. Upload later with: {command}")
+                warnings.warn(f"W&B not reachable ({error}); continuing offline. Upload later with: {command}")
             else:
                 note = "Logged to W&B offline. Run the command to upload it."
             self._record_integration(
@@ -876,6 +920,15 @@ class Writer(SummaryWriter):
             # sys.exit(), os-level exit paths, or simply no close() call
             self._status = "exited_without_close"
         self.close()
+
+    def record_exception(self, exc: BaseException) -> None:
+        """Mark the run failed (``interrupted`` for KeyboardInterrupt) in info.json.
+
+        For exceptions the program catches itself, e.g. around a training loop
+        that should still clean up; uncaught ones are recorded automatically.
+        The status and traceback are written when the writer closes.
+        """
+        self._record_exception(type(exc), exc, exc.__traceback__)
 
     def _record_exception(self, exc_type, exc, tb):
         if self._closed:

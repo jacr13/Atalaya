@@ -9,6 +9,7 @@ import pytest
 
 from atalaya import Writer
 from atalaya.logging import CSVLogger, GitInfo
+from atalaya.writer import _probe_wandb as REAL_PROBE  # before any test patches it
 
 
 def _events(logdir):
@@ -272,6 +273,15 @@ def _fake_wandb(calls, fail_online=True, run_dir=None):
     return FakeWandb
 
 
+@pytest.fixture(autouse=True)
+def wandb_reachable(monkeypatch):
+    """The W&B probe never touches the network in tests; reachable unless a test says otherwise."""
+    import atalaya.writer as writer_module
+
+    monkeypatch.setattr(writer_module, "_probe_wandb", lambda timeout: None)
+    monkeypatch.delenv("WANDB_MODE", raising=False)
+
+
 def test_wandb_falls_back_to_offline_and_records_sync_command(tmp_path, monkeypatch):
     calls = []
     run_dir = tmp_path / "wandb" / "offline-run-20261110_120000-run" / "files"
@@ -447,3 +457,76 @@ def test_defaults_csv_on_and_names_from_script(tmp_path):
     info = _info(tmp_path)
     assert info["project"] and info["project"] != "default_project"
     assert info["run_name"].startswith(info["project"] + "_")
+
+
+def test_wandb_unreachable_goes_offline_without_an_online_init(tmp_path, monkeypatch):
+    import atalaya.writer as writer_module
+
+    calls = []
+    monkeypatch.setattr(writer_module, "_probe_wandb", lambda timeout: "URLError: Connection refused (https://api.wandb.ai)")
+    monkeypatch.setitem(sys.modules, "wandb", _fake_wandb(calls))
+    w = _writer(tmp_path)
+    with pytest.warns(UserWarning, match="not reachable"):
+        w.with_wandb()
+    w.close()
+    # the online init that would leave W&B's service retrying is never started
+    assert [c.get("mode") for c in calls] == ["offline"]
+    entry = _info(tmp_path)["integrations"]["wandb"]
+    assert entry["status"] == "offline_fallback" and "Connection refused" in entry["error"]
+
+
+def test_wandb_failed_init_tears_down_before_offline_retry(tmp_path, monkeypatch):
+    calls, torn_down = [], []
+    fake = _fake_wandb(calls)
+    fake.teardown = staticmethod(lambda: torn_down.append(len(calls)))
+    monkeypatch.setitem(sys.modules, "wandb", fake)
+    w = _writer(tmp_path)
+    with pytest.warns(UserWarning):
+        w.with_wandb()
+    w.close()
+    assert [c.get("mode") for c in calls] == [None, "offline"]
+    assert torn_down == [1]  # after the failed online init, before the offline one
+
+
+def test_wandb_mode_env_offline_skips_the_probe(tmp_path, monkeypatch):
+    import atalaya.writer as writer_module
+
+    def probe(timeout):
+        raise AssertionError("probe must not run when WANDB_MODE=offline")
+
+    monkeypatch.setattr(writer_module, "_probe_wandb", probe)
+    monkeypatch.setenv("WANDB_MODE", "offline")
+    calls = []
+    monkeypatch.setitem(sys.modules, "wandb", _fake_wandb(calls, fail_online=False))
+    with _writer(tmp_path) as w:
+        w.with_wandb()
+    assert len(calls) == 1
+
+
+def test_probe_reports_connection_failures_only(monkeypatch):
+    import urllib.error
+    import urllib.request
+
+    _probe_wandb = REAL_PROBE
+
+    def refused(*a, **k):
+        raise urllib.error.URLError(ConnectionRefusedError(111, "Connection refused"))
+
+    def http_error(*a, **k):
+        raise urllib.error.HTTPError("https://api.wandb.ai", 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(urllib.request, "urlopen", refused)
+    assert "Connection refused" in _probe_wandb(1)
+    monkeypatch.setattr(urllib.request, "urlopen", http_error)
+    assert _probe_wandb(1) is None  # the server answered: reachable
+
+
+def test_public_record_exception(tmp_path):
+    w = _writer(tmp_path)
+    try:
+        raise RuntimeError("caught by the program")
+    except RuntimeError as e:
+        w.record_exception(e)
+    w.close()
+    info = _info(tmp_path)
+    assert info["status"] == "failed" and info["error"]["message"] == "caught by the program"

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "atalaya"
-version = "0.3.2"
+version = "0.3.3"
 description = "PyTorch experiment logging that keeps runs reproducible and by default never relies on the network."
 authors = ["Joao Ramos <joao@cramos.ch>"]
 license = "MIT"

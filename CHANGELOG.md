@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.3
+
+### Fixed
+
+- `with_wandb()` hung when W&B could not be reached: after a failed online `wandb.init`, W&B's background service kept retrying, so the offline retry timed out too and the process then hung at exit (about 10 minutes in tests, the 54-minute hang seen on a cluster). `with_wandb` now probes the W&B server with a plain HTTP request first (`probe_timeout=5`, same proxy settings) and goes straight to offline mode when it cannot connect, without starting an online run. If the probe passes but `wandb.init` still fails, W&B's service is torn down before the offline retry. Measured: offline within 3 to 8 seconds for a refused connection, a refusing proxy, an unroutable address and a non-W&B server.
+- `WANDB_MODE=offline` / `disabled` in the environment is respected without probing.
+
+### Added
+
+- `Writer.record_exception(exc)`: mark the run `failed` (or `interrupted`) in `info.json` for an exception the program catches itself.
+
 ## 0.3.2
 
 ### Fixed
