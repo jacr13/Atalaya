@@ -6,9 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
-from atalaya.terminal import terminal
-from atalaya.time_manager import Timer
-from atalaya.writer import Writer
+import atalaya as atl
 
 
 def make_synthetic_classification(
@@ -79,7 +77,7 @@ def train():
     log_dir = Path(f"example/logs/")
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    writer = Writer(
+    writer = atl.Writer(
         name="mlp_example",
         project="atalaya_examples",
         logdir=str(log_dir),
@@ -88,12 +86,12 @@ def train():
         save_as_csv=True,
         output_catcher=True,
     )
-    timer = Timer("mlp_training")
+    timer = writer.create_timer()  # timings.json at close
 
     try:
-        with timer:
+        with timer("training"):
             global_step = 0
-            terminal.print_info("Starting training loop on", device)
+            atl.terminal.print_info("Starting training loop on", device)
             for epoch in range(10):
                 running_loss = 0.0
                 for batch_inputs, batch_targets in train_loader:
@@ -101,10 +99,11 @@ def train():
                     batch_inputs = batch_inputs.to(device)
                     batch_targets = batch_targets.to(device)
 
-                    logits = model(batch_inputs)
-                    loss = criterion(logits, batch_targets)
-                    loss.backward()
-                    optimizer.step()
+                    with timer("step"):
+                        logits = model(batch_inputs)
+                        loss = criterion(logits, batch_targets)
+                        loss.backward()
+                        optimizer.step()
 
                     running_loss += loss.item()
                     # Tensorboard-style logging
@@ -116,8 +115,10 @@ def train():
                     global_step += 1
 
                 avg_loss = running_loss / max(1, len(train_loader))
-                train_acc = evaluate(model, train_loader, device)
-                eval_acc = evaluate(model, eval_loader, device)
+                with timer("evaluate"):
+                    train_acc = evaluate(model, train_loader, device)
+                    eval_acc = evaluate(model, eval_loader, device)
+                writer.log_timings(timer, global_step=epoch)  # share of time per section
 
                 # Wandb-style logging
                 writer.log(
@@ -130,7 +131,7 @@ def train():
                     prefix="train",
                 )
 
-                terminal.print_info(
+                atl.terminal.print_info(
                     f"Epoch {epoch:02d} | loss={avg_loss:.4f} | "
                     f"train_acc={train_acc:.3f} | eval_acc={eval_acc:.3f}"
                 )
@@ -138,11 +139,11 @@ def train():
             writer.add_models({"mlp": model}, global_step=global_step)
     finally:
         writer.close()
-        timer.report(report_type="total_with_stats")
-        terminal.print_ok("Example run finished. Logs stored in", log_dir)
+        timer.report()
+        atl.terminal.print_ok("Example run finished. Logs stored in", log_dir)
 
 
 if __name__ == "__main__":
     if not torch.cuda.is_available():
-        terminal.print_warning("CUDA not detected, falling back to CPU.")
+        atl.terminal.print_warning("CUDA not detected, falling back to CPU.")
     train()

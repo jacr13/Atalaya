@@ -189,3 +189,16 @@ class Terminal:
 
 # Create an instance of the Terminal class
 terminal = Terminal()
+
+# The module works like the instance: `import atalaya as atl; atl.terminal.print_ok(...)`
+# and `from atalaya.terminal import print_ok` both reach the shared `terminal`.
+print_message = terminal.print_message
+print_error = terminal.print_error
+print_ok = terminal.print_ok
+print_warning = terminal.print_warning
+print_info = terminal.print_info
+clean = terminal.clean
+set_color = terminal.set_color
+set_named_color = terminal.set_named_color
+set_log_file = terminal.set_log_file
+get_color_code = terminal.get_color_code

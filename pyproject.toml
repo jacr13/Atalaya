@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "atalaya"
-version = "0.2.8"
+version = "0.3.0"
 description = "Flexible experiment logging helpers for PyTorch projects."
 authors = ["Joao Ramos <joao@cramos.ch>"]
 license = "MIT"
@@ -18,6 +18,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
+[tool.poetry.scripts]
+atalaya = "atalaya.cli:main"
+
 [tool.poetry.dependencies]
 python = "^3.10"
 numpy = "^2.2"
@@ -26,7 +29,7 @@ psutil = "^7.1"
 wandb = { version = "^0.22", optional = true }
 comet-ml = { version = "^3.54", optional = true }
 clearml = { version = "^2.0", optional = true }
-neptune = { version = "^1.14", optional = true, extras = ["tensorboard"] }
+pluto-ml = { version = ">=0.0.29,<0.1", optional = true }
 matplotlib = { version = "^3.10", optional = true }
 seaborn = { version = "^0.13", optional = true }
 
@@ -34,19 +37,22 @@ seaborn = { version = "^0.13", optional = true }
 wandb = ["wandb"]
 comet = ["comet-ml"]
 clearml = ["clearml"]
-neptune = ["neptune"]
+pluto = ["pluto-ml"]
 visualization = ["matplotlib", "seaborn"]
 all = [
     "wandb",
     "comet-ml",
     "clearml",
-    "neptune",
+    "pluto-ml",
     "matplotlib",
     "seaborn",
 ]
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = "^0.24.4"
+pytest = "^8.0"
+tensorboard = "^2.15"  # tests read event files back
+pandas = "^2.0"  # tests of atalaya.read
 
 [tool.poe.tasks.clean-dist]
 shell = "rm -rf dist build"
@@ -57,3 +63,6 @@ sequence = ["clean-dist", { cmd = "poetry publish --build" }]
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poe.tasks.test]
+cmd = "pytest -q"

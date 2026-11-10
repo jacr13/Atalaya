@@ -1,3 +1,4 @@
+import os
 import platform
 import shlex
 import sys
@@ -18,6 +19,16 @@ def _clean_dict(data: Mapping[str, Any]) -> dict[str, Any]:
         else:
             cleaned[key] = value
     return cleaned
+
+
+_SLURM_VARS = (
+    "SLURM_JOB_ID",
+    "SLURM_ARRAY_JOB_ID",
+    "SLURM_ARRAY_TASK_ID",
+    "SLURM_JOB_NAME",
+    "SLURM_JOB_PARTITION",
+    "SLURM_JOB_NODELIST",
+)
 
 
 def collect_run_info(
@@ -41,9 +52,14 @@ def collect_run_info(
             "implementation": platform.python_implementation(),
             "executable": sys.executable,
         },
+        "hostname": platform.node() or None,
         "command": command if command else None,
         "script_path": str(source_path) if source_path is not None else None,
     }
+
+    # scheduler context, so a run can be traced back to its job and node
+    info["slurm"] = {k: os.environ.get(k) for k in _SLURM_VARS}
+    info["cuda_visible_devices"] = os.environ.get("CUDA_VISIBLE_DEVICES")
 
     if extra:
         info.update(extra)
