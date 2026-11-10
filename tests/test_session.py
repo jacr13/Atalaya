@@ -12,6 +12,7 @@ REPO = Path(__file__).resolve().parents[1]
 QUIET = dict(
     log_git_info=False, save_code=False, capture_exceptions=False,
     handle_sigterm=False, log_environment=False, save_requirements=False,
+    output_catcher=False,
 )
 
 

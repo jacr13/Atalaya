@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1
+
+### Changed defaults
+
+- `Writer(save_as_csv=True)`: every scalar goes to `data.csv` by default, as with `atl.init`. `save_as_csv=False` turns it off.
+- `Writer(output_catcher=True)`: stdout and stderr are also written to `log.txt` in the run directory by default, while still reaching the terminal or the SLURM output file. `output_catcher=False` turns it off.
+- `Writer(name=None, project=None)`: when not given, the run is named `<script>_<YYYYmmdd_HHMMSS>` and the project after the script, as with `atl.init`, instead of `default_name` / `default_project`.
+
+### Added
+
+- `poe` tasks load `.env`, so `POETRY_PYPI_TOKEN_PYPI` can live there for `poe publish`.
+
 ## 0.3.0
 
 ### Breaking changes

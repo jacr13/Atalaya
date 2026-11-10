@@ -239,6 +239,7 @@ def _writer(tmp_path, **kw):
     for key, value in dict(
         log_git_info=False, save_code=False, capture_exceptions=False,
         handle_sigterm=False, log_environment=False, save_requirements=False,
+        output_catcher=False,
     ).items():
         kw.setdefault(key, value)
     return Writer(name="run", project="p", logdir=str(tmp_path), **kw)

@@ -113,8 +113,9 @@ class Writer(SummaryWriter):
                   status (finished / failed / interrupted / exited_without_close),
                   end time, duration and last step
       git.diff    uncommitted changes to tracked files, when the tree is dirty
-      data.csv    every scalar, long format (``save_as_csv=True``); data.csv.gz
+      data.csv    every scalar, long format (on by default); data.csv.gz
                   with ``csv_compress=True``
+      log.txt     what the program prints, stdout and stderr (``output_catcher``)
       config.json the run's configuration (``config=``)
       requirements.txt  installed packages (``save_requirements=True``)
 
@@ -131,16 +132,16 @@ class Writer(SummaryWriter):
 
     def __init__(
         self,
-        name: str = "default_name",
-        project: str = "default_project",
+        name: str | None = None,
+        project: str | None = None,
         logdir: str = "logs",
         add_name_to_logdir: bool = False,
         add_time: bool = False,
-        output_catcher: bool = False,
+        output_catcher: bool = True,
         log_git_info: bool = True,
         save_git_diff: bool = True,
         git_root: str | Path | None = None,
-        save_as_csv: bool = False,
+        save_as_csv: bool = True,
         save_code: bool = True,
         extra_info: dict | None = None,
         config: dict | None = None,
@@ -157,8 +158,13 @@ class Writer(SummaryWriter):
     ):
         self._closed = True  # until fully initialised, close() is a no-op
         self._initial_time = time.time()
+        from ._session import _script_name
+
+        # same defaults as atl.init: the entry script names the project and run
+        if name is None:
+            name = f"{_script_name()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.name = name
-        self.project = project
+        self.project = project if project is not None else _script_name()
         self.logdir = Path(logdir)
 
         if add_time:

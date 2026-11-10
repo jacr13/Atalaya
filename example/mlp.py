@@ -83,8 +83,6 @@ def train():
         logdir=str(log_dir),
         add_name_to_logdir=True,
         add_time=True,
-        save_as_csv=True,
-        output_catcher=True,
     )
     timer = writer.create_timer()  # timings.json at close
 

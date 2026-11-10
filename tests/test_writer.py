@@ -40,6 +40,7 @@ def _writer(tmp_path, **kw):
     kw.setdefault("handle_sigterm", False)
     kw.setdefault("log_environment", False)
     kw.setdefault("save_requirements", False)
+    kw.setdefault("output_catcher", False)
     return Writer(name="run", project="p", logdir=str(tmp_path), **kw)
 
 
@@ -401,7 +402,7 @@ def test_pluto_online_forwards_scalars(tmp_path, monkeypatch):
 
 def test_pluto_failure_keeps_training_and_records_upload_command(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "pluto", _fake_pluto(_pluto_store(), fail=True))
-    w = _writer(tmp_path)  # CSV off: the fallback must switch it on
+    w = _writer(tmp_path, save_as_csv=False)  # CSV off: the fallback must switch it on
     with pytest.warns(UserWarning, match="continuing with local logs"):
         w.with_pluto(host="pluto.internal")
     w.log({"loss": 1.0}, step=0)
@@ -435,3 +436,14 @@ def test_upload_replays_csv_into_pluto(tmp_path, monkeypatch):
     assert all(t is not None for _, _, t in store["logs"])  # original wall-clock times
     entry = _info(tmp_path)["integrations"]["pluto"]
     assert entry["status"] == "uploaded" and entry["uploaded_steps"] == 3
+
+
+def test_defaults_csv_on_and_names_from_script(tmp_path):
+    w = Writer(logdir=str(tmp_path), log_git_info=False, save_code=False, capture_exceptions=False,
+               handle_sigterm=False, log_environment=False, save_requirements=False)
+    w.log({"loss": 1.0}, step=0)
+    w.close()
+    assert (tmp_path / "data.csv").exists()
+    info = _info(tmp_path)
+    assert info["project"] and info["project"] != "default_project"
+    assert info["run_name"].startswith(info["project"] + "_")

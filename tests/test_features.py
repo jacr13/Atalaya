@@ -27,6 +27,7 @@ def _writer(tmp_path, **kw):
         handle_sigterm=False,
         log_environment=False,
         save_requirements=False,
+        output_catcher=False,
     ).items():
         kw.setdefault(key, value)
     return Writer(name="run", project="p", logdir=str(tmp_path), **kw)
@@ -308,3 +309,24 @@ def test_event_file_found_through_tensorboardx_internals(tmp_path):
     with _writer(tmp_path) as w:
         path = Path(w.file_writer.event_writer._ev_writer._file_name)
         assert w._event_file_path == path and path.exists()
+
+
+def test_output_catcher_is_on_by_default(tmp_path):
+    proc = _run_script(
+        tmp_path,
+        """
+        import sys
+        import atalaya as atl
+        atl.init(name="r", logdir=sys.argv[1], log_git_info=False, save_code=False,
+                 log_environment=False, save_requirements=False)
+        print("hello from the run")
+        print("a warning", file=sys.stderr)
+        atl.finish()
+        print("after finish")
+        """,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "hello from the run" in proc.stdout and "a warning" in proc.stderr
+    log = (tmp_path / "logs" / "r" / "log.txt").read_text()
+    assert "hello from the run" in log and "a warning" in log
+    assert "after finish" not in log

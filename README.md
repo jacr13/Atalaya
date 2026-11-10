@@ -71,9 +71,6 @@ writer = atl.Writer(
     project="my-awesome-project",
     logdir="logs",
     add_time=True,
-    save_as_csv=True,
-    output_catcher=True,
-    log_git_info=True,
 )
 
 # Optional: sync logs with Weights & Biases
@@ -96,7 +93,7 @@ for epoch in range(10):
 writer.close()
 ```
 
-CSV logging is enabled when `save_as_csv=True`, and calling `output_catcher=True` mirrors everything printed to the console into `log.txt` within the run folder.
+Every scalar also goes to `data.csv` (on by default; `save_as_csv=False` to turn it off), and everything printed (stdout and stderr) is also written to `log.txt` in the run folder while still reaching the terminal (on by default; `output_catcher=False` to turn it off).
 Every run writes an `info.json` file with the launch command, Python version, and other metadata in the log directory. When `log_git_info` is enabled and a Git repository is detected, the same file also includes Git details plus ready-to-run checkout/clone commands so experiments can be reproduced. You can merge your own metadata into the file via the `extra_info` parameter (for example `extra_info={"dataset": "cifar10"}`).
 
 When the tree has uncommitted changes, they are saved to `git.diff` next to `info.json` (`save_git_diff=True`), and the replay commands apply it. Untracked files are listed in `info.json` but not saved. Pass `git_root=` when the repository cannot be found from the entry script.
@@ -132,7 +129,7 @@ Notes on Pluto (`pluto-ml`): it forwards scalars only (histograms, images and vi
 
 ### Run directory and options
 
-A run directory holds the event file plus `info.json`, `git.diff` (dirty tree), `config.json` (`config=`), `requirements.txt` (installed packages, `save_requirements=True`) and `data.csv` (`save_as_csv=True`). `info.json` also records the torch/CUDA/cuDNN versions (only if your program imported torch) and the GPUs reported by `nvidia-smi` (`log_environment=True`).
+A run directory holds the event file plus `info.json`, `git.diff` (dirty tree), `config.json` (`config=`), `requirements.txt` (installed packages, `save_requirements=True`) and `data.csv`. All of these, and `log.txt`, are on by default; each has an option to turn it off (`save_as_csv`, `output_catcher`, `log_git_info`, `save_git_diff`, `save_requirements`, `log_environment`, `save_code`). `async_writes` stays off: values are read later on a background thread, so an array changed in place after logging (e.g. weights after `optimizer.step()`) would be recorded with its new value. `info.json` also records the torch/CUDA/cuDNN versions (only if your program imported torch) and the GPUs reported by `nvidia-smi` (`log_environment=True`).
 
 | Option | Default | Effect |
 |---|---|---|
@@ -143,7 +140,7 @@ A run directory holds the event file plus `info.json`, `git.diff` (dirty tree), 
 | `async_writes=` | `False` | run logging calls on one background thread, in order; `writer.wait()` blocks until they are written |
 | `fast_video=` | `True` | `add_video` encodes GIFs with ffmpeg when installed (no moviepy, much faster) |
 
-`OutputCatcher` (`output_catcher=True`) mirrors stdout and stderr to `log.txt` while they keep going to the terminal, so tqdm, rich and subprocesses behave as before.
+`log.txt` (`output_catcher`, on by default) mirrors stdout and stderr while they keep going to the terminal or the SLURM output file, so tqdm, rich and subprocesses behave as before. Unlike the SLURM file it lives in the run directory and comes back with `atalaya pull`.
 
 ### Reading runs back and copying them from a cluster
 
