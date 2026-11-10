@@ -45,7 +45,9 @@ def encode_gif(frames: np.ndarray, fps: float) -> bytes:
         "ffmpeg", "-y", "-loglevel", "error",
         "-f", "rawvideo", "-vcodec", "rawvideo",
         "-r", f"{fps:.02f}", "-s", f"{w}x{h}", "-pix_fmt", pix_fmt, "-i", "-",
-        "-filter_complex", "[0:v]split[x][z];[z]palettegen[y];[x]fifo[x];[x][y]paletteuse",
+        # no `fifo` between split and paletteuse: it was only a buffering
+        # workaround for old ffmpeg, and ffmpeg 7 removed the filter
+        "-filter_complex", "[0:v]split[x][z];[z]palettegen[y];[x][y]paletteuse",
         "-r", f"{fps:.02f}", "-f", "gif", "-",
     ]
     proc = subprocess.run(

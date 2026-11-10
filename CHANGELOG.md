@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+### Fixed
+
+- `add_video` failed with ffmpeg 7 (`No such filter: 'fifo'`): the GIF filter chain no longer uses `fifo`, which ffmpeg 7 removed.
+- If ffmpeg encoding fails for any other reason, `add_video` warns once and falls back to tensorboardX's own `add_video` instead of raising.
+
 ## 0.3.1
 
 ### Changed defaults

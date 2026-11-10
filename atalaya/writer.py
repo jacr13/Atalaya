@@ -698,7 +698,14 @@ class Writer(SummaryWriter):
             return super().add_video(tag, vid_tensor, global_step, fps, walltime, dataformats)
         if hasattr(vid_tensor, "detach"):
             vid_tensor = vid_tensor.detach().cpu().numpy()
-        summary = video_summary(tag, np.asarray(vid_tensor), fps, dataformats)
+        try:
+            summary = video_summary(tag, np.asarray(vid_tensor), fps, dataformats)
+        except OSError as e:
+            # an ffmpeg build without a filter we use, a broken install, ...:
+            # never let video logging stop a run
+            warnings.warn(f"ffmpeg GIF encoding failed, using tensorboardX's add_video from now on: {e}")
+            self._fast_video = False
+            return super().add_video(tag, vid_tensor, global_step, fps, walltime, dataformats)
         if global_step is not None:
             self._last_step = global_step if self._last_step is None else max(self._last_step, global_step)
         self._get_file_writer().add_summary(summary, global_step, walltime)

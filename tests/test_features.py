@@ -330,3 +330,23 @@ def test_output_catcher_is_on_by_default(tmp_path):
     log = (tmp_path / "logs" / "r" / "log.txt").read_text()
     assert "hello from the run" in log and "a warning" in log
     assert "after finish" not in log
+
+
+def test_video_falls_back_when_ffmpeg_fails(tmp_path, monkeypatch):
+    import atalaya.writer as writer_module
+    from tensorboardX import SummaryWriter
+
+    def broken(*args, **kwargs):
+        raise OSError("No such filter: 'fifo'")
+
+    calls = []
+    monkeypatch.setattr(writer_module, "video_summary", broken)
+    monkeypatch.setattr(writer_module, "ffmpeg_available", lambda: True)
+    monkeypatch.setattr(SummaryWriter, "add_video", lambda self, *a, **k: calls.append(a[0]))
+    vid = np.zeros((1, 2, 3, 8, 8), dtype=np.uint8)
+    with _writer(tmp_path) as w:
+        with pytest.warns(UserWarning, match="ffmpeg GIF encoding failed"):
+            w.add_video("v", vid, global_step=0)
+        w.add_video("v2", vid, global_step=1)  # no second warning, straight to tensorboardX
+        assert w._fast_video is False
+    assert calls == ["v", "v2"]
